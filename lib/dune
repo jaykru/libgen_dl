@@ -1,0 +1,2 @@
+(library
+ (name libgen_client))
