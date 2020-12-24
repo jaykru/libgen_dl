@@ -1,5 +1,7 @@
 (executable
  (name libgen_dl)
+ (public_name libgen_dl)
+ (package libgen_dl)
  (libraries
    core
    lwt.unix
