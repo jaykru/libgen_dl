@@ -63,7 +63,7 @@ let () =
     let downloading_img selection =
       I.string A.(fg white)
         (Printf.sprintf
-           "Downloading %s.%s"
+          "Downloading %s.%s"
            selection.title
            selection.extension) in
 
@@ -106,9 +106,7 @@ let () =
                                        failed_img book e
                         in
                         download_imgs.(i) <- new_img;
-                        Lwt
-                        Term.image t (img download_imgs)
-                      )
+                        Term.image t (img download_imgs))
                       (Base.List.zip_exn selections (Base.List.range 0 (List.length selections))) in
           Lwt.return [] in
         
@@ -135,7 +133,12 @@ let () =
            match x with
            | `Key (`ASCII 'q',_) | `Key (`ASCII 'Q',_) -> Term.release t >>= fun () ->
                                                           Lwt.return_unit
-           | `Key (`ASCII 'd',_) | `Key (`ASCII 'D',_) -> loop t books cur sels ~download:true
+           | `Key (`ASCII 'd',_) | `Key (`ASCII 'D',_) -> loop
+                                                            t
+                                                            books
+                                                            cur
+                                                            (match sels with | [] -> [cur] | _ -> sels)
+                                                            ~download:true
            | `Key (`ASCII 's',_) ->
               let* search_term = Lwt_io.read_line Lwt_io.stdin in
               let* new_books = libgen_soup search_term
@@ -168,7 +171,7 @@ let () =
         libgen_soup search_term 
         >|= function
         | Some soup -> books_of_soup soup
-        | None -> []
+        | None -> Printf.printf "no soup"; []
       in
       loop t books 0 []
     end

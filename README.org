@@ -9,8 +9,25 @@
     mark a result for download (currently multiple simulatenous
     downloads are buggy)
 *** (d)
-    download currently selected results. currently the files will be saved to
-    $cwd/[Author][Year].[file extension]
+    download currently selected results. if no results are selected,
+    will download the result currently highlighted. currently the
+    files will be saved to $cwd/[Author][Year].[file extension].
 *** s
     quarter-implemented interactive search-term updating, won't show
-    you what you're typing (yet)
+    you what you're typing (yet.)
+** Notes
+*** Mirrors
+    We only support library.lol and the Cloudflare IPFS gateway for
+    downloads. This combination seems to have just about universal
+    coverage, is very fast and has good uptime. Adding more mirrors
+    would complicate the implementation and maintenance quite a
+    bit. Patches and feature requests for adding mirrors would only be
+    accepted if you can demonstrate that the currently implemented
+    mirror doesn't have adequate coverage of the libgen catalogue.
+*** UTF-8 bug
+    There is a known bug where some queries crash the downloader due
+    to malformed UTF-8 in the title text. I don't know how to use any
+    OCaml UTF-8 libraries, and the ones I've looked at appear
+    undocumented. Stay tuned for a fix.
+*** More planned features, bug fixes
+    See ~design.org~ for planned features and bugfixes.
