@@ -1,0 +1,16 @@
+* libgen_dl
+** Usage: libgen_dl "search term"
+** Navigating through results:
+*** up/(p)
+    go up through results
+*** down/(n)
+    go down through results
+*** space/(m)
+    mark a result for download (currently multiple simulatenous
+    downloads are buggy)
+*** (d)
+    download currently selected results. currently the files will be saved to
+    $cwd/[Author][Year].[file extension]
+*** s
+    quarter-implemented interactive search-term updating, won't show
+    you what you're typing (yet)
