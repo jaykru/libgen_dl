@@ -1,8 +1,11 @@
-;; This declares the hello_world executable implemented by hello_world.ml
 (executable
- (name libgen_client)
- (libraries lwt.unix
-            cohttp-lwt-unix
-            cohttp-async
-            lambdasoup
-            re))
+ (name libgen_dl)
+ (libraries
+   core
+   lwt.unix
+   cohttp-lwt-unix
+   cohttp-async
+   lambdasoup
+   re
+   notty
+   notty.lwt))

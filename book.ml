@@ -1,15 +1,15 @@
-(* #require "lwt"
-  #require "lambdasoup"
-  #require "cohttp"
-  #require "cohttp-lwt-unix" *)
+(** * book.ml: basic types and functions for dealing with abstract books
+
+"And further, by these, my son, be admonished: of making many books there is no end; and much study is a weariness of the flesh."
+Ecclesiastes 12:12, KJV.
+
+ *)
+
+open Soup
 open Lwt
-open Lwt.Syntax
 open Cohttp
 open Cohttp_lwt_unix
-open Soup
 
-(** * books
-      TODO: modularize *)
 (* Keeping all these members as strings will hopefully make the
    scraping a little more robust in the face of libgen changing their
    data representation *)
@@ -109,6 +109,8 @@ let is_cf_ipfs_gateway (n: 'a node): bool =
 
 let download_book (b: book) =
   let query = b.download_link in
+  let open Lwt.Syntax in
+  
   let* lol =
     begin
       (* TODO: figure out how to search libgen over tls *)
@@ -119,28 +121,38 @@ let download_book (b: book) =
     end in
   let lol_soup = parse lol in
   
-  
-  let cloudflare_dl_link = lol_soup
-                           |> descendants
-                           |> filter is_cf_ipfs_gateway
-                           |> elements
-                           |> first
-                           |> require
-                           |> attribute "href"
-                           |> require in
-  let* file = 
-    begin
-      Client.get (Uri.of_string cloudflare_dl_link) >>= fun (_, body) ->
-      (* let code = resp |> Response.status |> Code.code_of_status in *) (* TODO: error check *)
-      body |> Cohttp_lwt.Body.to_string >|= fun body ->
-      body
-    end
+  let cloudflare_dl_link =
+    let open Base.Option.Let_syntax in
+    lol_soup
+    |> descendants
+    |> filter is_cf_ipfs_gateway
+    |> elements
+    |> first >>= fun elt ->
+    elt |> attribute "href"
   in
-  (* TODO: if we can clean up the title we get, we can potentially
-     avoid doing this *)
-  Lwt_io.with_file ~mode:Output (b.author ^ b.year ^ "." ^ b.extension) (fun f ->
-      Lwt_io.write f file)
 
+  let* file = 
+    match cloudflare_dl_link with
+      None -> Lwt.return_error "No download link found."
+    | Some link ->
+       Client.get (Uri.of_string link) >>= fun (resp, body) ->
+       let code = resp |> Response.status |> Code.code_of_status in
+       match code with
+       | 200 -> 
+          body |> Cohttp_lwt.Body.to_string >|= fun body ->
+          Ok body
+       | _ -> Lwt.return_error "Bad response code."
+  in
+  match file with
+  | Ok file ->
+     Ok (Lwt_io.with_file
+           ~mode:Output (b.author ^ b.year ^ "." ^ b.extension) (fun f ->
+             Lwt_io.write f file))
+     |> Lwt.return
+  | Error e ->
+     Printf.sprintf "Error downloading %s.%s: %s" b.title b.extension e |> Lwt.return_error
+(* TODO: if we can clean up the title we get, we can potentially
+     avoid doing this *)
 
 (* TODO: remove uses of require *)
 let lol_links soup =
@@ -149,9 +161,9 @@ let lol_links soup =
   |> filter is_initial
   |> to_list
   |> List.map (fun x ->
-         element x
-         |> require
-         |> attribute "href")
+         let open Base.Option.Let_syntax in
+         element x >>= fun e ->
+         attribute "href" e)
   |> List.map require
 
 let books_of_soup soup : book list =
@@ -210,122 +222,3 @@ let image_of_book ?color:(color = false) ?cur:(cur = false) (b: book): Notty.ima
                    b.extension in
   (if color then I.string A.(fg green) " * "  else I.empty) <|>
     List.fold_left (<|>) I.empty [title; author; year; size; filetype]
-
-(** * nasty stuff *)
-let query_url ?num_results:(results = 25) search_term =
-  let res =
-    match results with
-      25 | 50 | 75 -> results
-      | _ -> Base.Int.round ~dir:`Nearest ~to_multiple_of:25 results
-             |> min 75
-             |> max 25
-  in
-  Printf.sprintf
-    "http://libgen.rs/search.php?req=%s&lg_topic=libgen&open=0&view=simple&res=%d&phrase=1&column=def"
-    search_term
-    res
-
-let libgen_soup ?num_results:(res = 25) search_term =
-  let query = query_url search_term ~num_results:res in 
-  (* TODO: figure out how to search libgen over tls *)
-  let bodycode =
-    let* (resp, body) = Client.get (Uri.of_string query) in
-    let code = resp |> Response.status |> Code.code_of_status in
-    body |> Cohttp_lwt.Body.to_string >|= fun body ->
-    (body, code) in 
-
-  let* (body, code) = bodycode in
-  match code with
-  | 200 ->
-     let soup = parse body
-     in Some soup |> Lwt.return
-  | _ -> None |> Lwt.return
-
-let () =
-  let open Notty in
-  
-  let book_images books cur sels : image list =
-    let needs_color book = List.mem book sels in
-    List.map (fun book -> image_of_book ~color:(needs_color book) ~cur:(List.nth books cur == book) book) books in
-  
-  let book_overview books cur sels =
-    match books with
-    | [] -> I.string A.empty "No results, try another search term."
-    | _ ->
-       List.fold_left I.(<->) I.empty (book_images books cur sels) in
-
-  let module Term = Notty_lwt.Term in
-
-  let rec loop ?download:(download = false) t books cur sels: unit Lwt.t=
-    let selections = if List.length books > List.fold_left max 0 sels then
-                       List.map (fun sel -> List.nth books sel) sels
-                     else [] in
-    
-    let downloading_img selection =
-      I.string A.(fg red)
-        (Printf.sprintf
-           "Downloading %s.%s"
-           selection.title
-           selection.extension) in
-    
-    let img = if download then
-                (* I.vsnap ~align:`Bottom 1 @@ *)
-                (List.fold_left I.(<->) I.empty
-                   (List.map
-                      downloading_img
-                      selections))
-              else book_overview books cur selections in
-    Term.image t img >>=
-      if download then
-        fun _ ->
-        (* TODO: make (multiple) downloads more responsive *)
-        Lwt_list.iter_s download_book selections >>= fun () ->
-        loop t books cur []
-      else 
-        fun _ ->
-        let* event = Lwt_stream.get ( Term.events t) in
-        match event with
-        | None -> loop t books cur sels
-        | Some (`Resize _ | #Unescape.event as x) ->
-           match x with
-           | `Key (`ASCII 'q',_) | `Key (`ASCII 'Q',_) -> Term.release t >>= fun () ->
-                                                          Lwt.return_unit
-           | `Key (`ASCII 'd',_) | `Key (`ASCII 'D',_) -> loop t books cur sels ~download:true
-           | `Key (`ASCII 's',_) ->
-              let* search_term = Lwt_io.read_line Lwt_io.stdin in
-              let* new_books = libgen_soup search_term
-                               >|= function
-                               | Some soup -> books_of_soup soup
-                               | None -> []
-              in
-              loop t new_books cur sels
-           | `Key (`ASCII 'm',_) -> let newsels =
-                                      if List.mem cur sels then
-                                        List.filter (fun x -> x != cur) sels
-                                      else (cur :: sels) in
-                                    loop t books cur newsels
-
-           | `Key (`Arrow `Up, _) -> loop t books (max 0 (cur - 1)) sels
-           | `Key (`Arrow `Down, _) -> loop t books (min (List.length books - 1) (cur + 1)) sels
-
-
-           | _ -> Lwt.return () >>= fun () ->
-                  loop t books cur sels in
-
-
-
-  let t = Term.create () in
-  Lwt_main.run begin
-      let* books =
-        let search_term =
-          if Array.length Sys.argv <= 1 then ""
-          else Sys.argv.(1)
-        in
-        libgen_soup search_term 
-        >|= function
-        | Some soup -> books_of_soup soup
-        | None -> []
-      in
-      loop t books 0 []
-    end
-
