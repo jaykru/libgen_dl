@@ -11,8 +11,8 @@
   library.lol from the actual download from cloudflare. that way we
   can throttle download-link acquisition but bang on cloudflare super
   hard.
-** TODO separate link-getting and downloading
-** TODO throttle link-getting
+** DONE separate link-getting
+** DONE throttle link-getting
    have a mutex L controlling link-getting ability
    each download promise will operate as follows:
 *** begin
@@ -21,7 +21,7 @@
 *** download link 
 *** close L
 *** end
-** TODO keep downloading as-is
+** DONE keep downloading as-is
 * TODO scale elision of title to terminal width
 * TODO add filtering functionality
 * DONE when no results are selected for download, we should download the result at the point

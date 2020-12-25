@@ -151,9 +151,10 @@ let download_book (b: book) (dl_link: string) =
              Lwt_io.write f file))
      |> Lwt.return
   | Error e ->
-     Printf.sprintf "Error downloading %s.%s: %s" b.title b.extension e |> Lwt.return_error
-(* TODO: if we can clean up the title we get, we can potentially
-     avoid doing this *)
+     (* TODO: if we can clean up the title we get, we can potentially
+        avoid doing this *)
+     Printf.sprintf "Error downloading %s%s.%s: %s" b.author b.year b.extension e |> Lwt.return_error
+
 
 (* TODO: remove uses of require *)
 let lol_links soup =
@@ -168,18 +169,20 @@ let lol_links soup =
   |> List.map require
 
 (* gets the cloudflare_ipfs links for a particular set of books *)
-let dl_links (bs: book list) =
+let dl_links (bs: book list): string option list Lwt.t =
   let dl_links = List.map (fun b -> b.lol_link) bs in
   let open Lwt.Syntax in
   let m = Lwt_mutex.create () in
-  Lwt_list.map_p
-    (fun lol_link ->
-      let* () = Lwt_mutex.lock m in 
-      let* cf_ipfs_link = get_cf_ipfs_link lol_link in
-      let* () = Lwt_unix.sleep 0.5 in
-      Lwt_mutex.unlock m;
-      Lwt.return cf_ipfs_link)
-    dl_links
+  let* dl_links =
+    Lwt_list.map_p
+      (fun lol_link ->
+        let* () = Lwt_mutex.lock m in
+        let* cf_ipfs_link = get_cf_ipfs_link lol_link in
+        let* () = Lwt_unix.sleep 0.05 in
+        Lwt_mutex.unlock m;
+        Lwt.return cf_ipfs_link)
+      dl_links in
+  Lwt.return dl_links
 
 let books_of_soup soup : book list =
   let lol_links = lol_links soup in
