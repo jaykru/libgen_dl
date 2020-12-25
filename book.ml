@@ -16,7 +16,7 @@ open Cohttp_lwt_unix
 type book =  
   {
     (* id: string; *)
-    download_link: string;
+    lol_link: string; (* library.lol download /page/ link *)
     title: string;
     author: string;
     filesize: string;
@@ -71,7 +71,7 @@ let book_nodes_as_text (book: 'a node list): string list list =
   |> List.filter is_element
   |> List.map texts
 
-let strings_to_book (link: string) (as_text: string list list): book =
+let strings_to_book ~lol_link:(lol_link: string) (as_text: string list list): book =
   (* TODO: try to filter out some of the junk libgen throws in; perhaps
    not worth doing considering we'll clip at a certain number of
    characters anyway *)
@@ -86,7 +86,7 @@ let strings_to_book (link: string) (as_text: string list list): book =
   let authors = String.concat "" (List.nth as_text 0) in
   
   {
-    download_link = link;
+    lol_link = lol_link;
     title = title;
     author = authors;
     filesize = size;
@@ -97,7 +97,6 @@ let strings_to_book (link: string) (as_text: string list list): book =
     publisher = publisher;
   }
 
-
 let is_cf_ipfs_gateway (n: 'a node): bool =
   match element n with
   | Some en ->
@@ -107,14 +106,14 @@ let is_cf_ipfs_gateway (n: 'a node): bool =
      end
   | None -> false
 
-let download_book (b: book) =
-  let query = b.download_link in
+let get_cf_ipfs_link (lol_link: string): string option Lwt.t =
+  let lol_query = lol_link in
   let open Lwt.Syntax in
   
   let* lol =
     begin
       (* TODO: figure out how to search libgen over tls *)
-      Client.get (Uri.of_string query) >>= fun (_, body) ->
+      Client.get (Uri.of_string lol_query) >>= fun (_, body) ->
       (* let code = resp |> Response.status |> Code.code_of_status in *)
       body |> Cohttp_lwt.Body.to_string >|= fun body ->
       body
@@ -130,12 +129,14 @@ let download_book (b: book) =
     |> first >>= fun elt ->
     elt |> attribute "href"
   in
+  Lwt.return cloudflare_dl_link
+
+
+let download_book (b: book) (dl_link: string) =
+  let open Lwt.Syntax in
 
   let* file = 
-    match cloudflare_dl_link with
-      None -> Lwt.return_error "No download link found."
-    | Some link ->
-       Client.get (Uri.of_string link) >>= fun (resp, body) ->
+       Client.get (Uri.of_string dl_link) >>= fun (resp, body) ->
        let code = resp |> Response.status |> Code.code_of_status in
        match code with
        | 200 -> 
@@ -166,18 +167,35 @@ let lol_links soup =
          attribute "href" e)
   |> List.map require
 
+(* gets the cloudflare_ipfs links for a particular set of books *)
+let dl_links (bs: book list) =
+  let dl_links = List.map (fun b -> b.lol_link) bs in
+  let open Lwt.Syntax in
+  let m = Lwt_mutex.create () in
+  Lwt_list.map_p
+    (fun lol_link ->
+      let* () = Lwt_mutex.lock m in 
+      let* cf_ipfs_link = get_cf_ipfs_link lol_link in
+      let* () = Lwt_unix.sleep 0.5 in
+      Lwt_mutex.unlock m;
+      Lwt.return cf_ipfs_link)
+    dl_links
+
 let books_of_soup soup : book list =
-  let links = lol_links soup in 
+  let lol_links = lol_links soup in
   let books_nodes = soup
                     |> descendants
                     |> filter is_final
                     |> to_list
                     |> List.map (fun final -> take_back_until final (fun _ -> false))
                     |> List.map List.rev in
-
+  
   List.map book_nodes_as_text books_nodes
-  |> Base.List.zip_exn links
-  |> List.map (fun (link, as_text) -> strings_to_book link as_text)
+  (* TODO: I'm not sure that we can actually assume every libgen book is on
+     library.lol, but this hasn't triggered an exception yet... *)
+  |> Base.List.zip_exn lol_links 
+  |> List.map (fun (lol_link, as_text) ->
+         strings_to_book ~lol_link:lol_link as_text)
 
 let image_of_book ?color:(color = false) ?cur:(cur = false) (b: book): Notty.image =
   let open Notty in 

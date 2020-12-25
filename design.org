@@ -1,4 +1,4 @@
-* TODO when no results are selected for download, we should download the result at the point
+* TODO use zed for search input
 * TODO fix unicode title bug, other issues with titles
 * TODO fix parallel download bugs, i have no clue what's going on there:
   i think the essential problem here is that we're just hitting
@@ -13,10 +13,22 @@
   hard.
 ** TODO separate link-getting and downloading
 ** TODO throttle link-getting
+   have a mutex L controlling link-getting ability
+   each download promise will operate as follows:
+*** begin
+*** acquire L
+*** sleep 1/2s
+*** download link 
+*** close L
+*** end
 ** TODO keep downloading as-is
 * TODO scale elision of title to terminal width
-* TODO use zed for search input
 * TODO add filtering functionality
+* DONE when no results are selected for download, we should download the result at the point
 * DONE result under cursor shall be highlighted and its information fields colored.
 * DONE results selected for download shall be distinguished by a green asterisk to their left
 * DONE eliminate uses of require, move to better error handling
+* add a non-interactive search mode
+  should produces a well-structured textual representation of each
+  result and its associated metadata (links, etc) for piping into helper programs
+

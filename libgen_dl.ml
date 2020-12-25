@@ -97,9 +97,17 @@ let () =
         fun _ ->
         (* TODO: make (multiple) downloads more responsive/parallel *)
         let download_books =
+          let* dl_links = dl_links selections in
+          Printf.printf "got dl links";
           let* () = Lwt_list.iter_p
                       (fun (book,i) ->
-                        let* res = download_book book in
+                        let* res =
+                          match List.nth dl_links i with
+                          | Some dl_link ->
+                             Ok (download_book book dl_link) |> Lwt.return
+                          | None ->
+                             Error "No download link available." |> Lwt.return
+                        in
                         let new_img = match res with
                           | Ok _ -> done_img book
                           | Error e -> Printf.printf "%s\n" e;
@@ -141,10 +149,11 @@ let () =
                                                             ~download:true
            | `Key (`ASCII 's',_) ->
               let* search_term = Lwt_io.read_line Lwt_io.stdin in
-              let* new_books = libgen_soup search_term
-                               >|= function
-                               | Some soup -> books_of_soup soup
-                               | None -> []
+              let* new_books =
+                let* soup = libgen_soup search_term
+                in soup |> function
+                          | Some soup -> books_of_soup soup |> Lwt.return
+                          | None -> Lwt.return []
               in
               loop t new_books cur sels
            | `Key (`ASCII 'm',_) | `Key (`ASCII ' ', _) ->
@@ -155,23 +164,27 @@ let () =
               loop t books cur newsels
            | `Key (`Arrow `Up, _) | `Key (`ASCII 'p',_) -> loop t books (max 0 (cur - 1)) sels
            | `Key (`Arrow `Down, _) | `Key (`ASCII 'n',_) -> loop t books (min (List.length books - 1) (cur + 1)) sels
-
-
            | _ -> Lwt.return () >>= fun () ->
                   loop t books cur sels in
 
   let t = Term.create () in
   let open Lwt.Syntax in 
   Lwt_main.run begin
+      let* () = Term.image t (I.string A.empty "Computing books") in
       let* books =
         let search_term =
           if Array.length Sys.argv <= 1 then ""
           else Sys.argv.(1)
         in
-        libgen_soup search_term 
-        >|= function
-        | Some soup -> books_of_soup soup
-        | None -> Printf.printf "no soup"; []
+        let* soup = libgen_soup search_term in
+        let* () = Term.image t (I.string A.empty "Soup downloaded") in
+        soup |> function
+               | Some soup -> let* () = Term.image t (I.string A.empty "Processing books of soup") in
+                              let books = books_of_soup soup in
+                              let* () = Term.image t (I.string A.empty "Done processing books of soup") in
+                              Lwt.return books
+               | None -> let* () = Term.image t (I.string A.empty "No soup") in
+                         Lwt.return []
       in
       loop t books 0 []
     end

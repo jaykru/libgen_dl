@@ -10,26 +10,19 @@ open Soup
 (* Keeping all these members as strings will hopefully make the
    scraping a little more robust in the face of libgen changing their
    data representation *)
-type book =  
-  {
-    (* id: string; *)
-    download_link: string;
-    title: string;
-    author: string;
-    filesize: string;
-    extension: string;
-    (* md5: string; *)
-    year: string;
-    language: string;
-    pages: string;
-    publisher: string;
-    (* edition: string;
-     * cover_url: string;
-     * download_url: string;
-     * page_url: string; *)
+type book = {
+    lol_link : string;
+    title : string;
+    author : string;
+    filesize : string;
+    extension : string;
+    year : string;
+    language : string;
+    pages : string;
+    publisher : string;
   }
-  
-val download_book : book -> (unit Lwt.t, string) result Lwt.t
-val books_of_soup : soup node -> book list
 
+val download_book : book -> string -> (unit Lwt.t, string) result Lwt.t
+val books_of_soup : soup node -> book list
+val dl_links : book list -> string option list Lwt.t
 val image_of_book : ?color:bool -> ?cur:bool -> book -> Notty.image 
