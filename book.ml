@@ -87,8 +87,6 @@ let cleaned ?encoding:(encoding = Some `UTF_8) (src : [`Channel of in_channel | 
   in
   let res = loop (Uutf.decoder ?encoding src) (Base.Buffer.create 128) []
   |> String.concat "" in
-  Printf.printf "cleaned: %s\n" res;
-  Zed_utf8.validate res |> ignore;
   res
 
 let strings_to_book ~lol_link:(lol_link: string) (as_text: string list list): book =
