@@ -116,15 +116,17 @@ and download_loop t books cur (sels: int list) =
     let done_img selection =
       I.string A.(fg green)
         (Printf.sprintf
-           "Finished %s.%s"
-           selection.title
+           "Downloading %s%s.%s"
+           selection.author
+           selection.year
            selection.extension) in
 
     let failed_img selection e =
       I.string A.(fg red)
         (Printf.sprintf
-           "Failed to download %s.%s: %s"
-           selection.title
+           "Failed to download %s%s.%s: %s"
+           selection.author
+           selection.year
            selection.extension
            e) in
 
