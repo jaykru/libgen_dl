@@ -10,4 +10,6 @@
    lambdasoup
    re
    notty
-   notty.lwt))
+   notty.lwt
+   uutf
+   zed))
