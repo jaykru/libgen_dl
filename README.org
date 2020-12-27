@@ -1,21 +1,23 @@
 * libgen_dl
 ** Usage: libgen_dl "search term"
 ** Navigating through results:
-*** up/(p)
-    go up through results
-*** down/(n)
-    go down through results
-*** space/(m)
-    mark a result for download (currently multiple simulatenous
-    downloads are buggy)
-*** (d)
-    download currently selected results. if no results are selected,
-    will download the result currently highlighted. currently the
-    files will be saved to $cwd/[Author][Year].[file extension].
-*** s
-    quarter-implemented interactive search-term updating, won't show
-    you what you're typing (yet.)
+| key       | action                                     |
+|-----------+--------------------------------------------|
+| up/(p)    | go up                                      |
+| down/(n)  | go down                                    |
+| space/(m) | mark result for download                   |
+| (d)       | download marked results or result at point |
+| s         | interactively update libgen query          |
+
 ** Notes
+*** Quirks
+**** Files will be saved to $cwd/[Author][Year].[file extension].
+**** UTF-8 bug
+     There is a known bug where some queries crash the downloader due
+     to malformed UTF-8 in the title text. I supsect this bug has its
+     root cause in another library but I haven't fully understood
+     it. I have a rough workaround implemented, but I'm not sure the
+     issue is completely fixed.
 *** Mirrors
     We only support library.lol and the Cloudflare IPFS gateway for
     downloads. This combination seems to have just about universal
@@ -24,13 +26,9 @@
     bit. Patches and feature requests for adding mirrors would only be
     accepted if you can demonstrate that the currently implemented
     mirror doesn't have adequate coverage of the libgen catalogue.
-*** UTF-8 bug
-    There is a known bug where some queries crash the downloader due
-    to malformed UTF-8 in the title text. I don't know how to use any
-    OCaml UTF-8 libraries, and the ones I've looked at appear
-    undocumented. Stay tuned for a fix.
+
 *** More planned features, bug fixes
-    See ~design.org~ for planned features and bugfixes.
+    See ~design.org~.
 ** FAQ
 *** Isn't webscraping stupid and error prone?
     Yes. Libgen doesn't have a proper API for searching, however, so

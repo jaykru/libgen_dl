@@ -1,9 +1,5 @@
 * TODO add filtering functionality
-* TODO use zed for interactive search input
 * TODO scale book metadata elision to terminal width
-* TODO modularize search mirror functionality
-* TODO eliminate uses of require, move to better error handling
-  almost done
 * TODO fix unicode title bug, other issues with titles
   see https://erratique.ch/software/uutf/doc/Uutf#examples:
   #+begin_src ocaml
@@ -22,9 +18,14 @@
   i have a working basic fix for this bug, but certain code points cause
   problems with Notty/Uutf, and I'm not sure why.
 ** TODO Report bug to Uutf?
-* add a non-interactive search mode
+* TODO add a non-interactive search mode
   should produces a well-structured textual representation of each
   result and its associated metadata (links, etc) for piping into helper programs
+* TODO eliminate uses of require, move to better error handling
+  almost done
+* CANCELED use zed for interactive search input
+** zed is essentially undocumented
+* DONE modularize search mirror functionality
 * DONE when no results are selected for download, we should download the result at the point
 * DONE result under cursor shall be highlighted and its information fields colored.
 * DONE results selected for download shall be distinguished by a green asterisk to their left
