@@ -21,6 +21,7 @@
 
   i have a working basic fix for this bug, but certain code points cause
   problems with Notty/Uutf, and I'm not sure why.
+** TODO Report bug to Uutf?
 * add a non-interactive search mode
   should produces a well-structured textual representation of each
   result and its associated metadata (links, etc) for piping into helper programs

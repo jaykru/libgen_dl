@@ -11,5 +11,4 @@
    re
    notty
    notty.lwt
-   uutf
-   zed))
+   uutf))

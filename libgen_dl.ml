@@ -7,6 +7,7 @@ open Cohttp
 open Cohttp_lwt_unix
 open Soup
 open Book
+open Book.Lol
 open Notty
 module Term = Notty_lwt.Term
 
@@ -40,8 +41,6 @@ let libgen_soup ?num_results:(res = 25) search_term =
      let soup = parse body
      in Some soup |> Lwt.return
   | _ -> None |> Lwt.return
-
-
 
 (* result display screen Notty images *)
 let selected_books sels books = List.map (fun sel -> List.nth books sel) sels
@@ -82,7 +81,8 @@ let rec main_loop ?download:(download = false) t books cur sels: unit Lwt.t =
                                                         (match sels with | [] -> [cur] | _ -> sels)
                                                         ~download:true
        | `Key (`ASCII 's',_) ->
-          search_loop t
+          let query = "search: " in
+          search_loop t query
        | `Key (`ASCII 'm',_) | `Key (`ASCII ' ', _) ->
           let newsels =
             if List.mem cur sels then
@@ -152,7 +152,6 @@ and download_loop t books cur (sels: int list) =
     in
 
     let* () = Term.image t (disp download_imgs) in
-    (* TODO: make (multiple) downloads more responsive/parallel *)
     let download_books =
       let* dl_links = dl_links selected_books in
       let img_mtx = Lwt_mutex.create () in
@@ -201,7 +200,7 @@ and download_loop t books cur (sels: int list) =
     let* new_sels = Lwt.pick [allow_quit (); download_books] in
     main_loop t books cur new_sels
 
-and search_loop t =
+and search_loop t query =
   let open Lwt.Syntax in
   
   let rec allow_quit () =
@@ -210,17 +209,47 @@ and search_loop t =
     | None -> allow_quit ()
     | Some (`Resize _ | #Unescape.event as x) ->
        match x with
-       | `Key (`ASCII 'q',_) | `Key (`ASCII 'Q',_) -> let* () = Term.release t in
-                                                      Lwt.return_unit
-       | _ -> allow_quit ()
+       | `Key (`Enter, _) ->
+          let* books =
+            let search_term =
+              query |> fun s -> Base.String.drop_prefix s (String.length "search: ")
+            in
+            let* soup = libgen_soup search_term in
+            soup |> function
+                   | Some soup -> let books = books_of_soup soup in
+                                  Lwt.return books
+                   | None -> Lwt.return []
+          in
+          main_loop t books 0 []
+       | `Key (`ASCII 'c', [`Ctrl]) | `Key (`ASCII 'd', [`Ctrl]) ->
+          let* () = Term.release t in
+          Lwt.return_unit
+       | `Key (`ASCII u, _) ->
+          search_loop t (query ^ (String.make 1 u))
+       | `Key (`Uchar u, _) ->
+          search_loop t (query ^ (String.make 1 (Uchar.to_char u)))
+       | `Key (`Backspace, _) ->
+          if String.length query > String.length "search: " then
+            search_loop t (Base.String.drop_suffix query 1)
+          else
+            allow_quit ()
+       | _ -> search_loop t query
   in
-  
-  let stand_in = "_-_-_-_-_-_-_-_" in
-  let (width, height) = Term.size t in
-  let img = I.string A.empty stand_in |>
-              I.vsnap ~align:`Middle height |>
-              I.hsnap ~align:`Middle width
-  in
+
+  let grid xxs = xxs |> List.map I.hcat |> I.vcat in
+
+  let outline attr w h =
+    let chr x = I.uchar attr x 1 1
+    and hbar  = I.uchar attr (Uchar.of_int 0x2500) (w - 2) 1
+    and vbar  = I.uchar attr (Uchar.of_int 0x2502) 1 (h) in
+    let (a, b, c, d) = (chr (Uchar.of_int 0x256d), chr (Uchar.of_int 0x256e), chr (Uchar.of_int 0x256f), chr (Uchar.of_int 0x2570)) in
+    grid [ [a; hbar; b]; [vbar; I.void (w - 2) 1; vbar]; [d; hbar; c] ] in
+
+  let (w, h) = Term.size t in
+  let smack_dab i = i |> I.vsnap ~align:`Middle h
+                      |> I.hsnap ~align:`Middle w in
+  let img = I.((string A.empty query |> smack_dab) </>
+               (outline A.(fg lightgreen) (String.length query + 2) 1 |> smack_dab)) in
   let* () = Term.image t img in
   allow_quit ()
 

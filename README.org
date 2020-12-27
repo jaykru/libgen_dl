@@ -31,3 +31,24 @@
     undocumented. Stay tuned for a fix.
 *** More planned features, bug fixes
     See ~design.org~ for planned features and bugfixes.
+** FAQ
+*** Isn't webscraping stupid and error prone?
+    Yes. Libgen doesn't have a proper API for searching, however, so
+    some amount of webscraping is necessary to get the book IDs
+    required to query their json API. Furthermore, once you have
+    scraped the book IDs and have the option to query the json API for
+    structured data about the books related to your query, each API
+    call is really slow. The delays worked against another
+    unmaintained [[https://github.com/ciehanski/libgen-cli][libgen downloader]] I fixed recently (before running
+    into Go module hell.)
+
+    I aim to make the webscaping aspects of this tool as modular as
+    possible. Even if I stop maintaing it someone could easily come
+    along and fix the scraping without modifying anything else about
+    the tool.
+
+    One more speculation about this: libgen's json API is, as far as I
+    gather, primarily intended for internal use. It wouldn't surprise
+    me, therefore, if it were more subject to flux than the
+    public-facing HTML that has remained as far as I can tell mostly
+    stable for the past few years
